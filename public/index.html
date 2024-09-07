@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Example</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Server</h1>
+        
+        <div id="database-info" class="alert alert-info mb-4"></div>
+
+        <h2>Online Users</h2>
+        <ul id="online-users" class="list-group mb-4"></ul>
+
+        <h2>All Users</h2>
+        <ul id="user-list" class="list-group mb-4"></ul>
+
+        <form id="user-form" class="form-inline">
+            <div class="form-group mb-2 mr-2">
+                <label for="name" class="sr-only">Name</label>
+                <input type="text" class="form-control" id="name" placeholder="Name" required>
+            </div>
+            <div class="form-group mb-2 mr-2">
+                <label for="email" class="sr-only">Email</label>
+                <input type="email" class="form-control" id="email" placeholder="Email" required>
+            </div>
+            <button type="submit" class="btn btn-primary mb-2">Add User</button>
+        </form>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Handle new user added event
+        socket.on('user-added', (data) => {
+            const userList = document.getElementById('user-list');
+            const listItem = document.createElement('li');
+            listItem.classList.add('list-group-item');
+            listItem.textContent = `${data.name} (${data.email}) - Database: ${data.database}`;
+            userList.appendChild(listItem);
+        });
+
+        // Handle user list update
+        socket.on('update-users', (onlineUsers) => {
+            const onlineUsersList = document.getElementById('online-users');
+            onlineUsersList.innerHTML = ''; // Clear current list
+            Object.keys(onlineUsers).forEach(userId => {
+                const user = onlineUsers[userId];
+                const listItem = document.createElement('li');
+                listItem.classList.add('list-group-item');
+                listItem.textContent = `User ID: ${userId} - Online: ${user.online}`;
+                onlineUsersList.appendChild(listItem);
+            });
+        });
+
+        document.getElementById('user-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+
+            fetch('/add-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email })
+            }).then(response => response.text())
+              .then(data => {
+                  console.log(data);
+                  document.getElementById('name').value = '';
+                  document.getElementById('email').value = '';
+              }).catch(err => console.error('Error:', err));
+        });
+
+        fetch('/users')
+            .then(response => response.json())
+            .then(data => {
+                const userList = document.getElementById('user-list');
+                data.results.forEach(user => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('list-group-item');
+                    listItem.textContent = `${user.name} (${user.email}) - Database: ${data.database}`;
+                    userList.appendChild(listItem);
+                });
+                const databaseInfo = document.getElementById('database-info');
+                databaseInfo.textContent = `Currently reading from: ${data.database}`;
+            }).catch(err => console.error('Error:', err));
+    </script>
+</body>
+</html>
